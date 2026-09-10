@@ -17,9 +17,7 @@ Directories:
 ├── deb                 # directory which receives the built deb packages     $DEB_TGT                           <--.
 │   │                                                                                                               |
 │   ├── raspibackup_0.7.4-m-972.deb                                                                                 |
-│   ├── raspibackup_0.7.4-m-972.deb.sig                                                                             |
-│   ├── raspibackup.deb -> raspibackup_0.7.4-m-972.deb                                                              |
-│   └── raspibackup.deb.sig -> raspibackup_0.7.4-m-972.deb.sig                                                      |
+│   └── raspibackup_0.7.4-m-972.deb.sig                                                                             |
 │                                                                                                                   |
 ├── gpg.conf            # gpg key id used to sign the packages                                                      |
 ├── install.log         # installation log                                                                          |
