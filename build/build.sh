@@ -25,10 +25,10 @@
 set -euo pipefail
 
 usage() {
-	cat <<"EOF_USAGE"
+    cat <<"EOF_USAGE"
 Usage:
 
-	build.sh [options]
+        build.sh [options]
 
 That simple call builds a Debian package from raspiBackup.
 Finally it runs `lintian` to check the package for compliance.
@@ -49,10 +49,10 @@ EOF_USAGE
 source ./common.sh
 
 if [[ ! -f ./build.conf ]] ; then
-	echo "Error: Configuration file 'build.conf' not found."
-	echo "Creating one for you now. Please check/edit it and try again..."
+    echo "Error: Configuration file 'build.conf' not found."
+    echo "Creating one for you now. Please check/edit it and try again..."
 
-	cat <<EOF_CONF > ./build.conf
+    cat <<EOF_CONF > ./build.conf
 # BRANCH_TO_DEB
 # The branch used to build the Debian package from.
 # If empty then the curent branch is used.
@@ -94,7 +94,7 @@ VERBOSITY=normal
 GPG_KEYID=
 EOF_CONF
 
-	exit 1
+    exit 1
 fi
 
 
@@ -106,36 +106,36 @@ source ./build.conf
 VERBOSITY="${VERBOSITY:-debug}"
 
 if [[ -z "$GPG_KEYID" ]] ; then
-	echo ""
-	echo "Error: The package can't be signed due to missing GPG_KEYID!"
-	echo "       Please set GPG_KEYID in 'build.conf' to the ID to be used"
-	echo "       for signing the built package."
-	echo ""
-	exit 1
+    echo ""
+    echo "Error: The package can't be signed due to missing GPG_KEYID!"
+    echo "       Please set GPG_KEYID in 'build.conf' to the ID to be used"
+    echo "       for signing the built package."
+    echo ""
+    exit 1
 fi
 
 
 ## For the transition of older gpg.conf to build.conf:
 #
 # if [[ -f gpg.conf ]] ; then
-# 	# fill GPG_KEYID with existing local key
-# 	# shellcheck disable=1091
-# 	source ./gpg.conf
-# 	cat ./gpg.conf >> build.conf
-# 	mv gpg.conf gpg.conf.bak
-# 	echo "Note: Moved the GPG_KEYID from 'gpg.conf' into 'build.conf'!"
+#     # fill GPG_KEYID with existing local key
+#     # shellcheck disable=1091
+#     source ./gpg.conf
+#     cat ./gpg.conf >> build.conf
+#     mv gpg.conf gpg.conf.bak
+#     echo "Note: Moved the GPG_KEYID from 'gpg.conf' into 'build.conf'!"
 # fi
 
 
 if (( $# > 0 )); then
-	case "$1" in
-	    -h|--help) usage
-		       exit
-		       ;;
-	    --no-check) LINTIAN_CHECK=""
-			shift
-			;;
-	esac
+    case "$1" in
+        -h|--help) usage
+                   exit
+                   ;;
+        --no-check) LINTIAN_CHECK=""
+                    shift
+                    ;;
+    esac
 fi
 
 LOG_FILE=$(cut -d'.' -f1 <<< "$(basename "$0")").log
@@ -173,12 +173,12 @@ export VERSION
 version="$(grep "^VERSION=" "$GITSRC/raspiBackup.sh" 2>/dev/null) | cut -f 2 -d "=" )"
 REGEX='.*="([^"]*)"'
 if [[ $version =~ $REGEX ]]; then
-	VERSION=${BASH_REMATCH[1]}
+    VERSION=${BASH_REMATCH[1]}
 fi
 
 # allow to pass another version number for upgrade/downgrade tests
 if (( $# > 0 )); then
-	VERSION="$1"
+    VERSION="$1"
 fi
 
 # underscores are not allowed in Debian version numbers
@@ -211,7 +211,7 @@ install -m644 -D -t "$TGT/$DIR_LIB/systemd/system" "$GITSRC/installation/raspiBa
 
 # copy extension files
 for file in "$GITSRC"/extensions/raspiBackup_*; do
-	install -m755 -D -t "$TGT/$DIR_SHARE/${PACKAGE_NAME}" "$file"
+    install -m755 -D -t "$TGT/$DIR_SHARE/${PACKAGE_NAME}" "$file"
 done
 
 # get current commit sha and date into code
@@ -250,23 +250,23 @@ LC_ALL=C dpkg-deb --root-owner-group --build "$TGT" "$DEB_TGT/${PACKAGE_NAME}${V
 # They are displayed on the terminal only when in debug mode.
 
 if [[ "$VERBOSITY" != debug ]] ; then
-	exec 3> "$DEBUG_FILE" 4>&1 5>&2 1>&3 2>&1
+    exec 3> "$DEBUG_FILE" 4>&1 5>&2 1>&3 2>&1
 fi
 
 show "Resulting DEBIAN package files ..."
 
 for f in "$TGT"/DEBIAN/* ; do
-	echo ""
-	show "... $f"
-	cat "$f"
+    echo ""
+    show "... $f"
+    cat "$f"
 done
 
 show "Resulting systemd files ..."
 
 for f in "$TGT/$DIR_LIB"/systemd/system/* ; do
-	echo ""
-	show "... $(realpath --relative-to . "$f")"
-	cat "$f"
+    echo ""
+    show "... $(realpath --relative-to . "$f")"
+    cat "$f"
 done
 
 show "${PACKAGE_NAME} $VERSION package information"
@@ -279,11 +279,11 @@ show "Sign package"
 gpg --verbose --yes --detach-sign -u "$GPG_KEYID" "$DEB_TGT/${PACKAGE_NAME}${VERSION_FILES}.deb" || exit $?
 
 if [[ "$VERBOSITY" != debug ]] ; then
-	if [[ -f "$DEBUG_FILE" ]] ; then
-		cat "$DEBUG_FILE" >> "$LOG_FILE"
-		rm "$DEBUG_FILE"
-	fi
-	exec 3>&- 1>&4- 2>&5-
+    if [[ -f "$DEBUG_FILE" ]] ; then
+        cat "$DEBUG_FILE" >> "$LOG_FILE"
+        rm "$DEBUG_FILE"
+    fi
+    exec 3>&- 1>&4- 2>&5-
 fi
 
 ## End of special debug block ##
@@ -293,47 +293,46 @@ fi
 pushd "$DEB_TGT" > /dev/null
 ln -sf "${PACKAGE_NAME}${VERSION_FILES}.deb" "${PACKAGE_NAME}.deb"
 if [[ -n "$GPG_KEYID" ]] ; then
-	ln -sf "${PACKAGE_NAME}${VERSION_FILES}.deb.sig" "${PACKAGE_NAME}.deb.sig"
+    ln -sf "${PACKAGE_NAME}${VERSION_FILES}.deb.sig" "${PACKAGE_NAME}.deb.sig"
 fi
 popd > /dev/null
 SKIP
 
 if [[ -n "$LINTIAN_CHECK" ]] ; then
-	show "Check package with lintian "
+    show "Check package with lintian "
 
-	if ! command -v lintian > /dev/null ; then
-		echo "Error: Can't check package because 'lintian' isn't installed!"
-		exit 1
-	fi
+    if ! command -v lintian > /dev/null ; then
+        echo "Error: Can't check package because 'lintian' isn't installed!"
+        exit 1
+    fi
 
-	# Note: The default behaviour for lintian exiting with rc=2 is:
-	#         `--fail-on error`
-	#       Since this packet isn't a real Debian one there are some
-	#       "accepted" errors. We simply **could** ignore all of the
-	#       failing checks by using option '--fail-on pedantic'.
-	#       But the cleaner way is:
-	#       Only suppress the unwanted checks via --suppress_tags.
-	case "$LINTIAN_CHECK" in
-		full) # Sometimes we might want to do a full check
-		      echo "Note: Reports all errors, even the accepted/known ones!"
-		      echo ""
-		      SUPPRESS_TAGS=""
-		      ;;
+    # Note: The default behaviour for lintian exiting with rc=2 is:
+    #         `--fail-on error`
+    #       Since this packet isn't a real Debian one there are some
+    #       "accepted" errors. We simply **could** ignore all of the
+    #       failing checks by using option '--fail-on pedantic'.
+    #       But the cleaner way is:
+    #       Only suppress the unwanted checks via --suppress_tags.
+    case "$LINTIAN_CHECK" in
+        full) # Sometimes we might want to do a full check
+              echo "Note: Reports all errors, even the accepted/known ones!"
+              echo ""
+              SUPPRESS_TAGS=""
+              ;;
 
-		*) # "reduced" checks is the default
-		   SUPPRESS_TAGS="--suppress-tags file-in-unusual-dir"
-		   SUPPRESS_TAGS="$SUPPRESS_TAGS,dir-in-usr-local,file-in-usr-local"
-		   SUPPRESS_TAGS="$SUPPRESS_TAGS,file-in-usr-marked-as-conffile,non-etc-file-marked-as-conffile"
-		   SUPPRESS_TAGS="$SUPPRESS_TAGS,no-changelog"
-		   SUPPRESS_TAGS="$SUPPRESS_TAGS,no-copyright-file"
-		   ;;
-	esac
+        *) # "reduced" checks is the default
+           SUPPRESS_TAGS="--suppress-tags file-in-unusual-dir"
+           SUPPRESS_TAGS="$SUPPRESS_TAGS,dir-in-usr-local,file-in-usr-local"
+           SUPPRESS_TAGS="$SUPPRESS_TAGS,file-in-usr-marked-as-conffile,non-etc-file-marked-as-conffile"
+           SUPPRESS_TAGS="$SUPPRESS_TAGS,no-changelog"
+           SUPPRESS_TAGS="$SUPPRESS_TAGS,no-copyright-file"
+           ;;
+    esac
 
-	# shellcheck disable=2086  # Double quote to prevent globbing and word splitting
-	lintian $LINTIAN_OPTIONS $SUPPRESS_TAGS "$DEB_TGT/${PACKAGE_NAME}.deb" || exit $?
+    # shellcheck disable=2086  # Double quote to prevent globbing and word splitting
+    lintian $LINTIAN_OPTIONS $SUPPRESS_TAGS "$DEB_TGT/${PACKAGE_NAME}.deb" || exit $?
 fi
 
 
 show "The final package in $DEB_TGT"
 ls -l "$DEB_TGT"
-
