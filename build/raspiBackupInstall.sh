@@ -34,11 +34,10 @@ BRANCH=m_972
 readonly REPO_OWNER
 readonly BRANCH
 
-# GITHUB_URL="https://raw.githubusercontent.com/${REPO_OWNER}/raspiBackup/refs/heads/${BRANCH}/build/deb"
-# GITHUB_URL="https://github.com/rpi-simonz/raspiBackup/raw/refs/heads/m_972/build/deb"
-GITHUB_URL="https://github.com/${REPO_OWNER}/raspiBackup/blob/refs/heads/${BRANCH}/build/deb"
-
-readonly GITHUB_URL
+GITHUB_URL_VERSION="https://raw.githubusercontent.com/${REPO_OWNER}/raspiBackup/refs/heads/${BRANCH}/build/deb"
+GITHUB_URL_DEB="https://github.com/${REPO_OWNER}/raspiBackup/raw/refs/heads/${BRANCH}/build/deb"
+readonly GITHUB_URL_VERSION
+readonly GITHUB_URL_DEB
 
 function err() {
     local rc="$1"
@@ -86,9 +85,10 @@ if [[ -n $1 && -d "$1" ]]; then
 	fi
 else
 	echo "--- Downloading raspiBackup Debian package from github.com/${REPO_OWNER}"
-	VERSION_FILES=$(curl -fsS "$GITHUB_URL/VERSION")
-	curl -fsSLO "$GITHUB_URL/raspiBackup${VERSION_FILES}.deb"
-	curl -fsSLO "$GITHUB_URL/raspiBackup${VERSION_FILES}.deb.sig"
+	VERSION_FILES=$(curl -fsS "$GITHUB_URL_VERSION/VERSION")
+	# echo "VERSION_FILES=${VERSION_FILES}<<"
+	curl -fsSLO "$GITHUB_URL_DEB/raspibackup${VERSION_FILES}.deb"
+	curl -fsSLO "$GITHUB_URL_DEB/raspibackup${VERSION_FILES}.deb.sig"
 fi
 
 #version=$(dpkg -I raspiBackup.deb | grep "^ Version" | cut -f 3 -d ' ')
@@ -116,12 +116,12 @@ if ! gpg --list-keys | grep -q ${REPO_OWNER}; then
 	gpg --import  ${REPO_OWNER}.gpg.asc
 fi
 
-echo "--- Verifying Debian package was created by repo owner (usually framp)"
+echo "--- Verifying Debian package was created by repo owner (usually framp, or simonz during development)"
 # will fail with unexpected error if verification fails
-gpg --verbose --verify "raspiBackup${VERSION_FILES}.deb.sig" "raspiBackup${VERSION_FILES}.deb"
+gpg --verbose --verify "raspibackup${VERSION_FILES}.deb.sig" "raspibackup${VERSION_FILES}.deb"
 
 echo "--- Installing raspiBackup package and all dependencies"
-sudo apt-get install --allow-downgrades -y "./raspiBackup${VERSION_FILES}.deb" | tee -a "$LOG_FILE" 2>&1
+sudo apt-get install --allow-downgrades -y "./raspibackup${VERSION_FILES}.deb" | tee -a "$LOG_FILE" 2>&1
 
 dpkg --list | grep raspibackup | awk '{ print "--- raspiBackup", $3, "installed successfully"; }'
 
