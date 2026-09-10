@@ -330,7 +330,11 @@ if [[ -n "$LINTIAN_CHECK" ]] ; then
     esac
 
     # shellcheck disable=2086  # Double quote to prevent globbing and word splitting
-    lintian $LINTIAN_OPTIONS $SUPPRESS_TAGS "$DEB_TGT/${PACKAGE_NAME}.deb" || exit $?
+    if lintian $LINTIAN_OPTIONS $SUPPRESS_TAGS "$DEB_TGT/${PACKAGE_NAME}${VERSION_FILES}.deb" ; then
+        echo "o.k."
+    else
+        exit $?
+    fi
 fi
 
 
