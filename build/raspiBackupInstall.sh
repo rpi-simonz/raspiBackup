@@ -34,7 +34,10 @@ BRANCH=m_972
 readonly REPO_OWNER
 readonly BRANCH
 
-GITHUB_URL="https://raw.githubusercontent.com/${REPO_OWNER}/raspiBackup/refs/heads/${BRANCH}/build/deb"
+# GITHUB_URL="https://raw.githubusercontent.com/${REPO_OWNER}/raspiBackup/refs/heads/${BRANCH}/build/deb"
+# GITHUB_URL="https://github.com/rpi-simonz/raspiBackup/raw/refs/heads/m_972/build/deb"
+GITHUB_URL="https://github.com/${REPO_OWNER}/raspiBackup/blob/refs/heads/${BRANCH}/build/deb"
+
 readonly GITHUB_URL
 
 function err() {
