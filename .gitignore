@@ -10,6 +10,9 @@ test/qemu
 kernel
 linux*
 images
+# used by simonz:
+Session.vim
 *.swp
-build/package/usr
-build/package/etc
+*.bak
+.private-conf.sh
+.cdprc

@@ -1,5 +1,5 @@
 #! raspiBackup_*.deb
 #! raspiBackup_*.deb.sig
-src
 build.conf
 deb/*
+package/src
