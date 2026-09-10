@@ -242,6 +242,7 @@ chmod 755 "$TGT/DEBIAN/postinst"
 
 show "Build (and sign) package"
 LC_ALL=C dpkg-deb --root-owner-group --build "$TGT" "$DEB_TGT/${PACKAGE_NAME}${VERSION_FILES}.deb"
+echo "${VERSION_FILES}" > "$DEB_TGT/VERSION"
 
 ## Start of special debug block ##
 
@@ -288,6 +289,7 @@ fi
 
 ## End of special debug block ##
 
+:<<"SKIP"
 # create links
 pushd "$DEB_TGT" > /dev/null
 ln -sf "${PACKAGE_NAME}${VERSION_FILES}.deb" "${PACKAGE_NAME}.deb"
@@ -295,6 +297,7 @@ if [[ -n "$GPG_KEYID" ]] ; then
     ln -sf "${PACKAGE_NAME}${VERSION_FILES}.deb.sig" "${PACKAGE_NAME}.deb.sig"
 fi
 popd > /dev/null
+SKIP
 
 if [[ -n "$LINTIAN_CHECK" ]] ; then
     show "Check package with lintian "

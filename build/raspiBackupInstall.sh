@@ -86,8 +86,9 @@ if [[ -n $1 && -d "$1" ]]; then
 	fi
 else
 	echo "--- Downloading raspiBackup Debian package from github.com/${REPO_OWNER}"
-	curl -fsSLO "$GITHUB_URL/raspiBackup.deb"
-	curl -fsSLO "$GITHUB_URL/raspiBackup.deb.sig"
+	VERSION_FILES=$(curl -fsS "$GITHUB_URL/VERSION")
+	curl -fsSLO "$GITHUB_URL/raspiBackup${VERSION_FILES}.deb"
+	curl -fsSLO "$GITHUB_URL/raspiBackup${VERSION_FILES}.deb.sig"
 fi
 
 #version=$(dpkg -I raspiBackup.deb | grep "^ Version" | cut -f 3 -d ' ')
@@ -117,10 +118,10 @@ fi
 
 echo "--- Verifying Debian package was created by repo owner (usually framp)"
 # will fail with unexpected error if verification fails
-gpg --verbose --verify raspiBackup.deb.sig raspiBackup.deb
+gpg --verbose --verify "raspiBackup${VERSION_FILES}.deb.sig" "raspiBackup${VERSION_FILES}.deb"
 
 echo "--- Installing raspiBackup package and all dependencies"
-sudo apt-get install --allow-downgrades -y ./raspiBackup.deb | tee -a "$LOG_FILE" 2>&1
+sudo apt-get install --allow-downgrades -y "./raspiBackup${VERSION_FILES}.deb" | tee -a "$LOG_FILE" 2>&1
 
 dpkg --list | grep raspibackup | awk '{ print "--- raspiBackup", $3, "installed successfully"; }'
 
