@@ -288,7 +288,7 @@ fi
 
 ## End of special debug block ##
 
-
+:<<"SKIP"
 # create links
 pushd "$DEB_TGT" > /dev/null
 ln -sf "${PACKAGE_NAME}${VERSION_FILES}.deb" "${PACKAGE_NAME}.deb"
@@ -296,7 +296,7 @@ if [[ -n "$GPG_KEYID" ]] ; then
 	ln -sf "${PACKAGE_NAME}${VERSION_FILES}.deb.sig" "${PACKAGE_NAME}.deb.sig"
 fi
 popd > /dev/null
-
+SKIP
 
 if [[ -n "$LINTIAN_CHECK" ]] ; then
 	show "Check package with lintian "

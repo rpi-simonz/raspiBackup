@@ -1,7 +1,7 @@
 #!/bin/bash
 #######################################################################################################################
 #
-# Script to download and install the raspiBackup oackage
+# Script to download and install the raspiBackup package
 #
 # Visit http://www.linux-tips-and-tricks.de/raspiBackup for latest code and other details
 #
@@ -26,7 +26,15 @@
 
 LOG_FILE=$(cut -d'.' -f1 <<< "$(basename "$0")").log
 readonly LOG_FILE
-GITHUB_URL="https://raw.githubusercontent.com/framps/raspiBackup/refs/heads/master/build/package"
+
+# REPO_OWNER=framps
+# BRANCH=master
+REPO_OWNER=rpi-simonz
+BRANCH=m_972
+readonly REPO_OWNER
+readonly BRANCH
+
+GITHUB_URL="https://raw.githubusercontent.com/${REPO_OWNER}/raspiBackup/refs/heads/${BRANCH}/build/deb"
 readonly GITHUB_URL
 
 function err() {
@@ -42,7 +50,7 @@ function err() {
 }
 
 cleanup() {
-	rm -f framps.gpg.asc
+	rm -f ${REPO_OWNER}.gpg.asc
 	# rm -f raspiBackup.deb
 	# rm -f raspiBackup.deb.sig
 	if (( $1 == 0 )); then
@@ -64,7 +72,7 @@ rm -f "$LOG_FILE"
 
 if [[ -n $1 && -d "$1" ]]; then
 
-	cd $1 || exit
+	cd "$1" || exit
 	if [[ ! -f "raspiBackup.deb" ]]; then
 		echo "??? $1/raspiBackup.deb not found"
 		exit 42
@@ -74,9 +82,9 @@ if [[ -n $1 && -d "$1" ]]; then
 		exit 42
 	fi
 else
-	echo "--- Downloading raspiBackup Debian package from github"
-	curl -fsSL $GITHUB_URL/raspiBackup.deb -o raspiBackup.deb
-	curl -fsSL $GITHUB_URL/raspiBackup.deb.sig -o raspiBackup.deb.sig
+	echo "--- Downloading raspiBackup Debian package from github.com/${REPO_OWNER}"
+	curl -fsSL "$GITHUB_URL/raspiBackup*.deb" -o raspiBackup.deb
+	curl -fsSL "$GITHUB_URL/raspiBackup*.deb.sig" -o raspiBackup.deb.sig
 fi
 
 #version=$(dpkg -I raspiBackup.deb | grep "^ Version" | cut -f 3 -d ' ')
@@ -96,15 +104,15 @@ if [[ ! $answer =~ [yYjJ] ]]; then
 fi
 SKIP
 
-# retrieve and import framps gpg key from github if it doesn't exist already in keyring
-if ! gpg --list-keys | grep -q framps; then
-	echo "--- Retrieving framps key from github"
-	curl https://github.com/framps.gpg | gpg --yes --dearmor -o framps.gpg.asc
-	echo "--- Importing framps key"
-	gpg --import  framps.gpg.asc
+# retrieve and import ${REPO_OWNER} gpg key from github if it doesn't exist already in keyring
+if ! gpg --list-keys | grep -q ${REPO_OWNER}; then
+	echo "--- Retrieving ${REPO_OWNER} key from github"
+	curl https://github.com/${REPO_OWNER}.gpg | gpg --yes --dearmor -o ${REPO_OWNER}.gpg.asc
+	echo "--- Importing ${REPO_OWNER} key"
+	gpg --import  ${REPO_OWNER}.gpg.asc
 fi
 
-echo "--- Verifying Debian package was created by framp"
+echo "--- Verifying Debian package was created by repo owner (usually framp)"
 # will fail with unexpected error if verification fails
 gpg --verbose --verify raspiBackup.deb.sig raspiBackup.deb
 
