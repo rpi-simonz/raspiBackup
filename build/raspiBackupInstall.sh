@@ -86,8 +86,8 @@ if [[ -n $1 && -d "$1" ]]; then
 	fi
 else
 	echo "--- Downloading raspiBackup Debian package from github.com/${REPO_OWNER}"
-	curl -fsSL "$GITHUB_URL/raspiBackup*.deb" -o raspiBackup.deb
-	curl -fsSL "$GITHUB_URL/raspiBackup*.deb.sig" -o raspiBackup.deb.sig
+	curl -fsSLO "$GITHUB_URL/raspiBackup.deb"
+	curl -fsSLO "$GITHUB_URL/raspiBackup.deb.sig"
 fi
 
 #version=$(dpkg -I raspiBackup.deb | grep "^ Version" | cut -f 3 -d ' ')
