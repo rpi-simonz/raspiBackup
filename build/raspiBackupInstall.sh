@@ -38,12 +38,16 @@ readonly REPO_OWNER
 readonly REPO_OWNER_GPG_FINGERPRINT
 readonly BRANCH
 
-GITHUB_URL_VERSION="https://raw.githubusercontent.com/${REPO_OWNER}/raspiBackup/refs/heads/${BRANCH}/build/deb"
-GITHUB_URL_DEB="https://github.com/${REPO_OWNER}/raspiBackup/raw/refs/heads/${BRANCH}/build/deb"
+RASPIBACKUP=raspiBackup
+PACKAGE_NAME=raspibackup
+readonly RASPIBACKUP
+readonly PACKAGE_NAME
+
+GITHUB_URL_VERSION="https://raw.githubusercontent.com/${REPO_OWNER}/${RASPIBACKUP}/refs/heads/${BRANCH}/build/deb"
+GITHUB_URL_DEB="https://github.com/${REPO_OWNER}/${RASPIBACKUP}/raw/refs/heads/${BRANCH}/build/deb"
 readonly GITHUB_URL_VERSION
 readonly GITHUB_URL_DEB
 
-PACKAGE_NAME="raspibackup"
 
 function err() {
     local rc="$1"
@@ -124,7 +128,7 @@ fi
 #version=$(dpkg -I ${PACKAGE_NAME}.deb | grep "^ Version" | cut -f 3 -d ' ')
 
 :<<"SKIP"
-echo -n "--- Installing raspiBackup $version. Are you sure? (y|N) "
+echo -n "--- Installing ${RASPIBACKUP} $version. Are you sure? (y|N) "
 
 read -r -n 1 answer
 
@@ -133,7 +137,7 @@ if [[ -n "${str//[[:space:]]/}" ]]; then
 fi
 
 if [[ ! $answer =~ [yYjJ] ]]; then
-	echo "!!! Installation of raspiBackup $version aborted"
+	echo "!!! Installation of ${RASPIBACKUP} $version aborted"
 	exit 0
 fi
 SKIP
@@ -149,13 +153,13 @@ if ! gpg --verbose --verify "${PACKAGE_NAME}${VERSION_FILES}.deb.sig" "${PACKAGE
 fi
 
 echo ""
-echo "--- Installing raspiBackup package and all dependencies"
+echo "--- Installing ${RASPIBACKUP} package and all dependencies"
 sudo apt install --allow-downgrades -y "./${PACKAGE_NAME}${VERSION_FILES}.deb"
 ## TODO: !!! interferes with dpkg's interactive dialogs: | tee -a "$LOG_FILE" 2>&1
 # shellcheck disable=2181  # check exit code directly ... not indirectly with $?
 if (( $? != 0 )) ; then
     echo "Installation error (or has been canceled manually)"
 else
-    dpkg --list | grep ${PACKAGE_NAME} | awk '{ print "--- raspiBackup", $3, "installed successfully"; }'
+    dpkg --list | grep ${PACKAGE_NAME} | awk '{ print "--- ${RASPIBACKUP}", $3, "installed successfully"; }'
 fi
 
