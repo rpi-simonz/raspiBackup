@@ -150,10 +150,12 @@ fi
 
 echo ""
 echo "--- Installing raspiBackup package and all dependencies"
-if ! sudo apt install --allow-downgrades -y "./${PACKAGE_NAME}${VERSION_FILES}.deb" ; then
-    echo "Installation error (or cancel)"
-fi
+sudo apt install --allow-downgrades -y "./${PACKAGE_NAME}${VERSION_FILES}.deb"
 ## TODO: !!! interferes with dpkg's interactive dialogs: | tee -a "$LOG_FILE" 2>&1
-
-dpkg --list | grep ${PACKAGE_NAME} | awk '{ print "--- raspiBackup", $3, "installed successfully"; }'
+# shellcheck disable=2181  # check exit code directly ... not indirectly with $?
+if (( $? != 0 )) ; then
+    echo "Installation error (or has been canceled manually)"
+else
+    dpkg --list | grep ${PACKAGE_NAME} | awk '{ print "--- raspiBackup", $3, "installed successfully"; }'
+fi
 
