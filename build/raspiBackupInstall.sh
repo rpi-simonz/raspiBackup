@@ -63,17 +63,18 @@ function err() {
 }
 
 cleanup() {
-	# rm -f ${PACKAGE_NAME}.deb
-	# rm -f ${PACKAGE_NAME}.deb.sig
+	# Delete all(?) raspibackup package files
+	# rm -f ${PACKAGE_NAME}*.deb
+	# rm -f ${PACKAGE_NAME}*.deb.sig
 	if (( $1 == 0 )); then
 		: rm -f "$LOG_FILE"
 	else
-		echo "??? Installation failed"
+		echo "??? Installation failed (or has been cancelled)"
 		echo "!!! Check $LOG_FILE for details"
 	fi
 }
 
-# TODO: Really trap ERR?
+# TODO: Really trap ERR in this script?
 trap 'err $?' ERR
 trap 'cleanup $?' SIGINT SIGTERM SIGHUP EXIT
 
@@ -117,7 +118,6 @@ else
 	echo ""
 	echo "--- Downloading ${PACKAGE_NAME} Debian package from github.com/${REPO_OWNER}"
 	VERSION_FILES=$(curl -fsS "$GITHUB_URL_VERSION/VERSION")
-	# echo "VERSION_FILES=${VERSION_FILES}<<"
 	curl -fsSLO "$GITHUB_URL_DEB/${PACKAGE_NAME}${VERSION_FILES}.deb"
 	curl -fsSLO "$GITHUB_URL_DEB/${PACKAGE_NAME}${VERSION_FILES}.deb.sig"
 	# Create unversioned links for easier handling in the "then" part above...
@@ -125,9 +125,9 @@ else
 	ln -sf "${PACKAGE_NAME}${VERSION_FILES}.deb.sig" "${PACKAGE_NAME}.deb.sig"
 fi
 
-#version=$(dpkg -I ${PACKAGE_NAME}.deb | grep "^ Version" | cut -f 3 -d ' ')
-
 :<<"SKIP"
+version=$(dpkg -I ${PACKAGE_NAME}.deb | grep "^ Version" | cut -f 3 -d ' ')
+
 echo -n "--- Installing ${RASPIBACKUP} $version. Are you sure? (y|N) "
 
 read -r -n 1 answer
@@ -142,7 +142,7 @@ if [[ ! $answer =~ [yYjJ] ]]; then
 fi
 SKIP
 
-# Handle error manually here now. Seems to be better (for the user...) TODO: Checkup
+# Handle errors manually from here on. Seems to be better (for the user...) TODO: Checkup
 trap '' ERR
 
 echo ""
@@ -154,12 +154,8 @@ fi
 
 echo ""
 echo "--- Installing ${RASPIBACKUP} package and all dependencies"
-sudo apt install --allow-downgrades -y "./${PACKAGE_NAME}${VERSION_FILES}.deb"
+if sudo apt install --allow-downgrades -y "./${PACKAGE_NAME}${VERSION_FILES}.deb" ; then
 ## TODO: !!! interferes with dpkg's interactive dialogs: | tee -a "$LOG_FILE" 2>&1
-# shellcheck disable=2181  # check exit code directly ... not indirectly with $?
-if (( $? != 0 )) ; then
-    echo "Installation error (or has been canceled manually)"
-else
-    dpkg --list | grep ${PACKAGE_NAME} | awk '{ print "--- ${RASPIBACKUP}", $3, "installed successfully"; }'
+    dpkg --list | grep ${PACKAGE_NAME} | awk '{ print "--- ${PACKAGE_NAME}", $3, "installed successfully"; }'
 fi
 
