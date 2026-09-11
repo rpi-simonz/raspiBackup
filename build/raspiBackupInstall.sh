@@ -59,7 +59,6 @@ function err() {
 }
 
 cleanup() {
-	rm -f ${REPO_OWNER}.gpg.asc
 	# rm -f ${PACKAGE_NAME}.deb
 	# rm -f ${PACKAGE_NAME}.deb.sig
 	if (( $1 == 0 )); then
@@ -95,6 +94,7 @@ if ! gpg --list-keys ${REPO_OWNER_GPG_FINGERPRINT} > /dev/null; then
 	curl https://github.com/${REPO_OWNER}.gpg | gpg --yes --dearmor -o ${REPO_OWNER}.gpg.asc
 	echo "--- Importing ${REPO_OWNER} key"
 	gpg --import  ${REPO_OWNER}.gpg.asc
+	rm -f ${REPO_OWNER}.gpg.asc
 fi
 
 
