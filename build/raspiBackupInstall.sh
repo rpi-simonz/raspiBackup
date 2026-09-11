@@ -49,7 +49,7 @@ readonly GITHUB_URL_VERSION
 readonly GITHUB_URL_DEB
 
 
-function err() {
+err() {
     local rc="$1"
     echo ""
     echo "??? Unexpected error occured with RC $rc"
@@ -74,6 +74,59 @@ cleanup() {
 	fi
 }
 
+check_required_tools() {
+	if ! command -v curl > /dev/null ; then
+		# TODO: Check for 'gpg' too?
+		echo ""
+		echo "Problem: Required command 'curl' is not installed!"
+		echo "--- Trying to install 'curl' now..."
+		sudo apt install curl
+	fi
+}
+
+get_gpg_key() {
+	# retrieve and import ${REPO_OWNER} gpg key from github if it doesn't exist already in keyring
+	if ! gpg --list-keys ${REPO_OWNER_GPG_FINGERPRINT} > /dev/null; then
+		echo ""
+		echo "--- Retrieving ${REPO_OWNER} key from github"
+		curl https://github.com/${REPO_OWNER}.gpg | gpg --yes --dearmor -o ${REPO_OWNER}.gpg.asc
+		echo "--- Importing ${REPO_OWNER} key"
+		gpg --import  ${REPO_OWNER}.gpg.asc
+		rm -f ${REPO_OWNER}.gpg.asc
+	fi
+}
+
+download_package_files() {
+	echo ""
+	echo "--- Downloading ${PACKAGE_NAME} Debian package from github.com/${REPO_OWNER}"
+	VERSION_FILES=$(curl -fsS "$GITHUB_URL_VERSION/VERSION")
+	curl -fsSLO "$GITHUB_URL_DEB/${PACKAGE_NAME}${VERSION_FILES}.deb"
+	curl -fsSLO "$GITHUB_URL_DEB/${PACKAGE_NAME}${VERSION_FILES}.deb.sig"
+	# Create unversioned links for easier handling in the "then" part above...
+	ln -sf "${PACKAGE_NAME}${VERSION_FILES}.deb" "${PACKAGE_NAME}.deb"
+	ln -sf "${PACKAGE_NAME}${VERSION_FILES}.deb.sig" "${PACKAGE_NAME}.deb.sig"
+}
+
+
+get_user_confirmation() {
+	version=$(dpkg -I ${PACKAGE_NAME}.deb | grep "^ Version" | cut -f 3 -d ' ')
+
+	echo
+	echo -n "--- Installing ${RASPIBACKUP} $version. Are you sure? (y|N) "
+
+	read -r -n 1 answer
+
+	if [[ -n "${str//[[:space:]]/}" ]]; then
+		echo
+	fi
+
+	if [[ ! $answer =~ [yYjJ] ]]; then
+		echo "!!! Installation of ${RASPIBACKUP} $version aborted"
+		exit 0
+	fi
+}
+
+
 # TODO: Really trap ERR in this script?
 trap 'err $?' ERR
 trap 'cleanup $?' SIGINT SIGTERM SIGHUP EXIT
@@ -84,27 +137,11 @@ exec 2> >(stdbuf -i0 -o0 -e0 tee -ia "$LOG_FILE" >&2)
 
 rm -f "$LOG_FILE"
 
-if ! command -v curl > /dev/null ; then
-    # TODO: Check for 'gpg' too?
-    echo ""
-    echo "Problem: Required command 'curl' is not installed!"
-    echo "--- Trying to install 'curl' now..."
-    sudo apt install curl
-fi
+check_required_tools
 
-# retrieve and import ${REPO_OWNER} gpg key from github if it doesn't exist already in keyring
-if ! gpg --list-keys ${REPO_OWNER_GPG_FINGERPRINT} > /dev/null; then
-	echo ""
-	echo "--- Retrieving ${REPO_OWNER} key from github"
-	curl https://github.com/${REPO_OWNER}.gpg | gpg --yes --dearmor -o ${REPO_OWNER}.gpg.asc
-	echo "--- Importing ${REPO_OWNER} key"
-	gpg --import  ${REPO_OWNER}.gpg.asc
-	rm -f ${REPO_OWNER}.gpg.asc
-fi
-
+get_gpg_key
 
 if [[ -n $1 && -d "$1" ]]; then
-
 	cd "$1" || exit
 	if [[ ! -f "${PACKAGE_NAME}.deb" ]]; then
 		echo "??? $1/${PACKAGE_NAME}.deb not found"
@@ -115,32 +152,8 @@ if [[ -n $1 && -d "$1" ]]; then
 		exit 42
 	fi
 else
-	echo ""
-	echo "--- Downloading ${PACKAGE_NAME} Debian package from github.com/${REPO_OWNER}"
-	VERSION_FILES=$(curl -fsS "$GITHUB_URL_VERSION/VERSION")
-	curl -fsSLO "$GITHUB_URL_DEB/${PACKAGE_NAME}${VERSION_FILES}.deb"
-	curl -fsSLO "$GITHUB_URL_DEB/${PACKAGE_NAME}${VERSION_FILES}.deb.sig"
-	# Create unversioned links for easier handling in the "then" part above...
-	ln -sf "${PACKAGE_NAME}${VERSION_FILES}.deb" "${PACKAGE_NAME}.deb"
-	ln -sf "${PACKAGE_NAME}${VERSION_FILES}.deb.sig" "${PACKAGE_NAME}.deb.sig"
+	download_package_files
 fi
-
-:<<"SKIP"
-version=$(dpkg -I ${PACKAGE_NAME}.deb | grep "^ Version" | cut -f 3 -d ' ')
-
-echo -n "--- Installing ${RASPIBACKUP} $version. Are you sure? (y|N) "
-
-read -r -n 1 answer
-
-if [[ -n "${str//[[:space:]]/}" ]]; then
-	echo
-fi
-
-if [[ ! $answer =~ [yYjJ] ]]; then
-	echo "!!! Installation of ${RASPIBACKUP} $version aborted"
-	exit 0
-fi
-SKIP
 
 # Handle errors manually from here on. Seems to be better (for the user...) TODO: Checkup
 trap '' ERR
@@ -151,6 +164,8 @@ if ! gpg --verbose --verify "${PACKAGE_NAME}${VERSION_FILES}.deb.sig" "${PACKAGE
     echo "Error: Verification failed. TODO: What to do now?"
     exit 42
 fi
+
+get_user_confirmation
 
 echo ""
 echo "--- Installing ${RASPIBACKUP} package and all dependencies"
