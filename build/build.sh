@@ -1,4 +1,5 @@
 #!/bin/bash
+# vim: set expandtab:
 #######################################################################################################################
 #
 #    Build raspiBackup Debian package
@@ -304,37 +305,36 @@ if [[ -n "$LINTIAN_CHECK" ]] ; then
 
     if ! command -v lintian > /dev/null ; then
         echo "Error: Can't check package because 'lintian' isn't installed!"
-        exit 1
-    fi
-
-    # Note: The default behaviour for lintian exiting with rc=2 is:
-    #         `--fail-on error`
-    #       Since this packet isn't a real Debian one there are some
-    #       "accepted" errors. We simply **could** ignore all of the
-    #       failing checks by using option '--fail-on pedantic'.
-    #       But the cleaner way is:
-    #       Only suppress the unwanted checks via --suppress_tags.
-    case "$LINTIAN_CHECK" in
-        full) # Sometimes we might want to do a full check
-              echo "Note: Reports all errors, even the accepted/known ones!"
-              echo ""
-              SUPPRESS_TAGS=""
-              ;;
-
-        *) # "reduced" checks is the default
-           SUPPRESS_TAGS="--suppress-tags file-in-unusual-dir"
-           SUPPRESS_TAGS="$SUPPRESS_TAGS,dir-in-usr-local,file-in-usr-local"
-           SUPPRESS_TAGS="$SUPPRESS_TAGS,file-in-usr-marked-as-conffile,non-etc-file-marked-as-conffile"
-           SUPPRESS_TAGS="$SUPPRESS_TAGS,no-changelog"
-           SUPPRESS_TAGS="$SUPPRESS_TAGS,no-copyright-file"
-           ;;
-    esac
-
-    # shellcheck disable=2086  # Double quote to prevent globbing and word splitting
-    if lintian $LINTIAN_OPTIONS $SUPPRESS_TAGS "$DEB_TGT/${PACKAGE_NAME}${VERSION_FILES}.deb" ; then
-        echo "o.k."
     else
-        exit $?
+        # Note: The default behaviour for lintian exiting with rc=2 is:
+        #         `--fail-on error`
+        #       Since this packet isn't a real Debian one there are some
+        #       "accepted" errors. We simply **could** ignore all of the
+        #       failing checks by using option '--fail-on pedantic'.
+        #       But the cleaner way is:
+        #       Only suppress the unwanted checks via --suppress_tags.
+        case "$LINTIAN_CHECK" in
+            full) # Sometimes we might want to do a full check
+                  echo "Note: Reports all errors, even the accepted/known ones!"
+                  echo ""
+                  SUPPRESS_TAGS=""
+                  ;;
+
+               *) # "reduced" checks is the default
+                  SUPPRESS_TAGS="--suppress-tags file-in-unusual-dir"
+                  SUPPRESS_TAGS="$SUPPRESS_TAGS,dir-in-usr-local,file-in-usr-local"
+                  SUPPRESS_TAGS="$SUPPRESS_TAGS,file-in-usr-marked-as-conffile,non-etc-file-marked-as-conffile"
+                  SUPPRESS_TAGS="$SUPPRESS_TAGS,no-changelog"
+                  SUPPRESS_TAGS="$SUPPRESS_TAGS,no-copyright-file"
+                  ;;
+        esac
+
+        # shellcheck disable=2086  # Double quote to prevent globbing and word splitting
+        if lintian $LINTIAN_OPTIONS $SUPPRESS_TAGS "$DEB_TGT/${PACKAGE_NAME}${VERSION_FILES}.deb" ; then
+            echo "o.k."
+        else
+            exit $?
+        fi
     fi
 fi
 
