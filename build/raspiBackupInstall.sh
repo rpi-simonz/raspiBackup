@@ -31,7 +31,7 @@ LOG_FILE=$(cut -d'.' -f1 <<< "$(basename "$0")").log
 readonly LOG_FILE
 
 readonly REPO_OWNER="${REPO_OWNER:-framps}"
-readonly REPO_OWNER_GPG_FINGERPRINT="${REPO_OWNER_GPG_FINGERPRINT:-4B9E02DBACA4DD24}"
+readonly REPO_OWNER_GPG_FINGERPRINT="${REPO_OWNER_GPG_FINGERPRINT:-23A2E977F377FC31CE44DC9C4B9E02DBACA4DD24}"
 readonly BRANCH="${BRANCH:-master}"
 
 readonly RASPIBACKUP=raspiBackup
@@ -72,9 +72,9 @@ Use '.' for the current directory.
 Additionally the download source can be modified by setting the environment:
 
     Variable                     | Default value
-    -----------------------------|------------------
+    -----------------------------|-----------------------------------------
     REPO_OWNER                   | framps
-    REPO_OWNER_GPG_FINGERPRINT   | 4B9E02DBACA4DD24
+    REPO_OWNER_GPG_FINGERPRINT   | 23A2E977F377FC31CE44DC9C4B9E02DBACA4DD24
     BRANCH                       | master
 
 
@@ -167,7 +167,14 @@ check_required_tools() {
 }
 
 get_gpg_key() {
-    # retrieve and import ${REPO_OWNER} gpg key from github if it doesn't exist already in keyring
+    # Retrieve and import ${REPO_OWNER} gpg key from github if it doesn't exist already in keyring
+    # The initial list-keys function might print messages like these:
+    #     gpg: directory '/home/username/.gnupg' created
+    #     gpg: keybox '/home/username/.gnupg/pubring.kbx' created
+    #     gpg: /home/username/.gnupg/trustdb.gpg: trustdb created
+    #     gpg: error reading key: No public key
+    # Those *could* be suppressed by 2>/dev/null but that would suppress other
+    # important error messages as well... So we don't do that.
     if ! gpg --list-keys "${REPO_OWNER_GPG_FINGERPRINT}" > /dev/null; then
         echo ""
         if (( VERBOSE )) ; then
@@ -175,23 +182,35 @@ get_gpg_key() {
             echo "    >     gpg --list-keys ${REPO_OWNER_GPG_FINGERPRINT}"
             echo ""
         fi
-        # might print messages like these:
-        #     gpg: directory '/home/username/.gnupg' created
-        #     gpg: keybox '/home/username/.gnupg/pubring.kbx' created
-        #     gpg: /home/username/.gnupg/trustdb.gpg: trustdb created
-        #     gpg: error reading key: No public key
 
         echo "--- Retrieving ${REPO_OWNER}'s GPG key from https://github.com/${REPO_OWNER}.gpg"
+
+        if (( VERBOSE )) ; then
+            echo ""
+            echo "    > That's not optimal because it's the same source as the complete package."
+            echo "    > If that source is untrusted/hacked the verification against this key might be too."
+            echo "    >"
+            echo "    > It would be better to download ${REPO_OWNER}'s GPG key from elsewhere and check it carefully manually."
+            echo "    > For example from ${REPO_OWNER}'s web site (might be not yet available there!)."
+            echo "    > Check the fingerprint at least!"  # TODO: What else should/can be recommended?
+            echo "    >"
+            echo "    > Then you could import the key into your local keyring using the command:"
+            echo "    >     gpg --import <downloaded-keyfile.gpg>"
+        fi
+
         echo ""
         curl -fsSLO https://github.com/"${REPO_OWNER}".gpg
         gpg --show-keys "${REPO_OWNER}".gpg
         echo ""
-        ask_yes_no -n "Is that key / are those keys okay to be imported to your local keyring" || return 42  # TODO: What to do better here?
-        echo "--- Importing ${REPO_OWNER} key"
+        echo "Please check the fingerprint(s) above against ${REPO_OWNER_GPG_FINGERPRINT}"
+        echo ""
+        ask_yes_no -n "Is that key / are those keys okay to be imported into your local keyring" || return 42  # TODO: What to do better here?
+        echo ""
+        echo "--- Importing ${REPO_OWNER} GPG key (showing the shortened fingerprint only)"
         gpg --import  "${REPO_OWNER}".gpg
-        if ask_yes_no "Should the downloaded and already imported key file '${REPO_OWNER}.gpg' be deleted now?" ; then
-            rm -f "${REPO_OWNER}".gpg
-        fi
+        echo ""
+        echo "The downloaded and already imported key file '${REPO_OWNER}.gpg' is no loanger needed."
+        ask_yes_no "Should it be deleted now?" && rm -f "${REPO_OWNER}".gpg
     fi
 }
 
