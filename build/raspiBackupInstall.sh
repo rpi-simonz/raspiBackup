@@ -258,7 +258,9 @@ verify_package() {
         echo "    > using command:"
         echo "    >     gpg --batch --verify ${PACKAGE_NAME}${VERSION_FILES}.deb.sig  ${PACKAGE_NAME}${VERSION_FILES}.deb"
         echo "    >"
-        gpg --batch --verify "${PACKAGE_NAME}${VERSION_FILES}.deb.sig" "${PACKAGE_NAME}${VERSION_FILES}.deb" 2>&1 | sed -e 's/^/    > /'
+        if ! gpg --batch --verify "${PACKAGE_NAME}${VERSION_FILES}.deb.sig" "${PACKAGE_NAME}${VERSION_FILES}.deb" 2>&1 | sed -e 's/^/    > /' ; then
+            echo "ERROR!"
+        fi
     fi
 
     gpgresult=$(gpg --batch --status-fd 1 --verify "${PACKAGE_NAME}${VERSION_FILES}.deb.sig" "${PACKAGE_NAME}${VERSION_FILES}.deb"  2>/dev/null)
@@ -270,6 +272,10 @@ verify_package() {
         # else
             echo ""
             echo "OOPS, SIGNATURE IS NOT VALID?????"
+            if ! (( VERBOSE )) ; then
+                echo ""
+                gpg --batch --verify "${PACKAGE_NAME}${VERSION_FILES}.deb.sig" "${PACKAGE_NAME}${VERSION_FILES}.deb"
+            fi
             exit 42
         fi
         if (( VERBOSE )) ; then
@@ -291,8 +297,10 @@ verify_package() {
         fi
     else
         echo "OOPS, SIGNATURE IS NOT GOOD!!!???"
-        echo ""
-        gpg --batch --verify "${PACKAGE_NAME}${VERSION_FILES}.deb.sig" "${PACKAGE_NAME}${VERSION_FILES}.deb"
+        if ! (( VERBOSE )) ; then
+            echo ""
+            gpg --batch --verify "${PACKAGE_NAME}${VERSION_FILES}.deb.sig" "${PACKAGE_NAME}${VERSION_FILES}.deb"
+        fi
         exit 42
     fi
 
