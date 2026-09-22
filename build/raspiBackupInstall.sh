@@ -289,6 +289,15 @@ install_package() {
 	fi
 
 	dpkg --list | grep ${PACKAGE_NAME} | awk '{ print "--- ${PACKAGE_NAME}", $3, "installed successfully"; }'
+
+	# Due to systemd components in the installed debian package there is the following warning shown by apt-get:
+	#
+	#   Warning: The unit file, source configuration file or drop-ins of raspiBackup.service changed on disk.
+	#            Run 'systemctl daemon-reload' to reload units.
+	#
+	# So doing as advised now:
+	echo "--- Reload systemd units"
+	sudo systemctl daemon-reload
 }
 
 
