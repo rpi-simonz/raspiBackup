@@ -1,4 +1,5 @@
 #!/bin/bash
+# vim: set ts=4 sts=4 expandtab:
 #######################################################################################################################
 #
 # Script to download and install the raspiBackup package
@@ -43,7 +44,7 @@ MYSELF=$(basename "$0")
 
 
 usage() {
-	cat <<-EOF_USAGE
+    cat <<-EOF_USAGE
 Installation script for ${RASPIBACKUP}
 
 It executes the following steps (could be done manually as well, of course):
@@ -85,159 +86,159 @@ EOF_USAGE
 
 
 err() {
-	local rc="$1"
-	echo ""
-	echo "??? Unexpected error occured with RC $rc"
-	local i=0
-	local FRAMES=${#BASH_LINENO[@]}
-	for ((i = FRAMES - 2; i >= 0; i--)); do
-		echo '  File' \""${BASH_SOURCE[i + 1]}"\", line ${BASH_LINENO[i]}, in "${FUNCNAME[i + 1]}"
-		sed -n "${BASH_LINENO[i]}{s/^/    /;p}" "${BASH_SOURCE[i + 1]}"
-	done
-	exit 42
+    local rc="$1"
+    echo ""
+    echo "??? Unexpected error occured with RC $rc"
+    local i=0
+    local FRAMES=${#BASH_LINENO[@]}
+    for ((i = FRAMES - 2; i >= 0; i--)); do
+        echo '  File' \""${BASH_SOURCE[i + 1]}"\", line ${BASH_LINENO[i]}, in "${FUNCNAME[i + 1]}"
+        sed -n "${BASH_LINENO[i]}{s/^/    /;p}" "${BASH_SOURCE[i + 1]}"
+    done
+    exit 42
 }
 
 ask_yes_no() {
-	# $1 -n  set "no" as default, else it's "yes"
-	# $2.. prompt
-	local default choices answer
-	default=y
-	choices="Yn"
-	if [[ "$1" == -n ]] ; then
-		shift
-		default=n
-		choices="yN"
-	fi
+    # $1 -n  set "no" as default, else it's "yes"
+    # $2.. prompt
+    local default choices answer
+    default=y
+    choices="Yn"
+    if [[ "$1" == -n ]] ; then
+        shift
+        default=n
+        choices="yN"
+    fi
 
-	read -r -s -n 1 -p "$* [${choices}] " answer
+    read -r -s -n 1 -p "$* [${choices}] " answer
 
-	# The -s above and the following echo "..." handle
-	#   - a single 'Enter' keystroke with its newline
-	#   - compared to the missing newline otherwise
-	echo "${answer}"
-	if [[ "${answer}" =~ [yYjJ] ]] || [[ "${answer}${default}" == "y" ]]; then
-		true
-	else
-		false
-	fi
+    # The -s above and the following echo "..." handle
+    #   - a single 'Enter' keystroke with its newline
+    #   - compared to the missing newline otherwise
+    echo "${answer}"
+    if [[ "${answer}" =~ [yYjJ] ]] || [[ "${answer}${default}" == "y" ]]; then
+        true
+    else
+        false
+    fi
 }
 
 cleanup() {
-	# Delete all(?) raspibackup package files
-	# rm -f ${PACKAGE_NAME}*.deb
-	# rm -f ${PACKAGE_NAME}*.deb.sig
-	if (( $1 == 0 )); then
-		: rm -f "$LOG_FILE"
-	else
-		echo ""
-		echo "??? Installation failed (or has been cancelled)"
-		echo "!!! Check $LOG_FILE for details"
-	fi
+    # Delete all(?) raspibackup package files
+    # rm -f ${PACKAGE_NAME}*.deb
+    # rm -f ${PACKAGE_NAME}*.deb.sig
+    if (( $1 == 0 )); then
+        : rm -f "$LOG_FILE"
+    else
+        echo ""
+        echo "??? Installation failed (or has been cancelled)"
+        echo "!!! Check $LOG_FILE for details"
+    fi
 }
 
 check_required_tools() {
-	local req_cmd cmd pkg is_debian
+    local req_cmd cmd pkg is_debian
 
-	for req_cmd in  curl@curl  gpg@gnupg ; do
-		cmd="${req_cmd%@*}"
-		pkg="${req_cmd#*@}"
-		if ! command -v "${cmd}" > /dev/null ; then
-			echo ""
-			echo "Problem: Required command '${cmd}' is not installed!"
-			ask_yes_no -n "Should '${cmd}' from package '${pkg}' being installed now (otherwise you have to do it manually)?" || return 42
-			echo "--- Installing '${pkg}'"
-			sudo apt-get install "${pkg}"
-	    fi
-	done
+    for req_cmd in  curl@curl  gpg@gnupg ; do
+        cmd="${req_cmd%@*}"
+        pkg="${req_cmd#*@}"
+        if ! command -v "${cmd}" > /dev/null ; then
+            echo ""
+            echo "Problem: Required command '${cmd}' is not installed!"
+            ask_yes_no -n "Should '${cmd}' from package '${pkg}' being installed now (otherwise you have to do it manually)?" || return 42
+            echo "--- Installing '${pkg}'"
+            sudo apt-get install "${pkg}"
+        fi
+    done
 
-	# And what about 'apt/apt-get'? Is this a Debian system?
-	is_debian=y
-	command -v apt-get > /dev/null || is_debian=n
-	grep -e "^ID=" -e "^ID_LIKE=" /etc/os-release | grep "debian" > /dev/null || is_debian=n
-	if [[ "$is_debian" != y ]] ; then
-		echo "Doesn't seem to be a Debian system. This script won't work!"
-		return 42
-	fi
+    # And what about 'apt/apt-get'? Is this a Debian system?
+    is_debian=y
+    command -v apt-get > /dev/null || is_debian=n
+    grep -e "^ID=" -e "^ID_LIKE=" /etc/os-release | grep "debian" > /dev/null || is_debian=n
+    if [[ "$is_debian" != y ]] ; then
+        echo "Doesn't seem to be a Debian system. This script won't work!"
+        return 42
+    fi
 }
 
 get_gpg_key() {
-	# retrieve and import ${REPO_OWNER} gpg key from github if it doesn't exist already in keyring
-	if ! gpg --list-keys "${REPO_OWNER_GPG_FINGERPRINT}" > /dev/null; then
-		echo ""
-		if (( VERBOSE )) ; then
-			echo "    > The repo owners GPG key isn't in the local keyring, checked via command:"
-			echo "    >     gpg --list-keys ${REPO_OWNER_GPG_FINGERPRINT}"
-			echo ""
-		fi
-		# might print messages like these:
-		#     gpg: directory '/home/username/.gnupg' created
-		#     gpg: keybox '/home/username/.gnupg/pubring.kbx' created
-		#     gpg: /home/username/.gnupg/trustdb.gpg: trustdb created
-		#     gpg: error reading key: No public key
+    # retrieve and import ${REPO_OWNER} gpg key from github if it doesn't exist already in keyring
+    if ! gpg --list-keys "${REPO_OWNER_GPG_FINGERPRINT}" > /dev/null; then
+        echo ""
+        if (( VERBOSE )) ; then
+            echo "    > The repo owners GPG key isn't in the local keyring, checked via command:"
+            echo "    >     gpg --list-keys ${REPO_OWNER_GPG_FINGERPRINT}"
+            echo ""
+        fi
+        # might print messages like these:
+        #     gpg: directory '/home/username/.gnupg' created
+        #     gpg: keybox '/home/username/.gnupg/pubring.kbx' created
+        #     gpg: /home/username/.gnupg/trustdb.gpg: trustdb created
+        #     gpg: error reading key: No public key
 
-		echo "--- Retrieving ${REPO_OWNER}'s GPG key from https://github.com/${REPO_OWNER}.gpg"
-		echo ""
-		curl -fsSLO https://github.com/"${REPO_OWNER}".gpg
-		gpg --show-keys "${REPO_OWNER}".gpg
-		echo ""
-		ask_yes_no -n "Is that key / are those keys okay to be imported to your local keyring" || return 42  # TODO: What to do better here?
-		echo "--- Importing ${REPO_OWNER} key"
-		gpg --import  "${REPO_OWNER}".gpg
-		if ask_yes_no "Should the downloaded and already imported key file '${REPO_OWNER}.gpg' be deleted now?" ; then
-			rm -f "${REPO_OWNER}".gpg
-		fi
-	fi
+        echo "--- Retrieving ${REPO_OWNER}'s GPG key from https://github.com/${REPO_OWNER}.gpg"
+        echo ""
+        curl -fsSLO https://github.com/"${REPO_OWNER}".gpg
+        gpg --show-keys "${REPO_OWNER}".gpg
+        echo ""
+        ask_yes_no -n "Is that key / are those keys okay to be imported to your local keyring" || return 42  # TODO: What to do better here?
+        echo "--- Importing ${REPO_OWNER} key"
+        gpg --import  "${REPO_OWNER}".gpg
+        if ask_yes_no "Should the downloaded and already imported key file '${REPO_OWNER}.gpg' be deleted now?" ; then
+            rm -f "${REPO_OWNER}".gpg
+        fi
+    fi
 }
 
 download_package_files() {
-	echo ""
-	VERSION_FILES=$(curl -fsS "${GITHUB_URL_VERSION}/VERSION")
-	if [[ -z "${VERSION_FILES}" ]] ; then
-		echo "Error: The repository/branch doesn't have the required file '${GITHUB_URL_VERSION}/VERSION' (yet)!"
-		return 42
-	fi
-	echo "--- Downloading ${PACKAGE_NAME}${VERSION_FILES} Debian package from github.com/${REPO_OWNER}"
-	if (( VERBOSE )) ; then
-		echo "    > found VERSION file at ${GITHUB_URL_VERSION}/VERSION"
-		echo "    >     with contents: ${VERSION_FILES}"
-		echo "    > Downloading using the commands:"
-		echo "    >     curl -fsSLO ${GITHUB_URL_DEB}/${PACKAGE_NAME}${VERSION_FILES}.deb"
-		echo "    >     curl -fsSLO ${GITHUB_URL_DEB}/${PACKAGE_NAME}${VERSION_FILES}.deb.sig"
-	fi
-	curl -fsSLO "${GITHUB_URL_DEB}/${PACKAGE_NAME}${VERSION_FILES}.deb" || return 42
-	curl -fsSLO "${GITHUB_URL_DEB}/${PACKAGE_NAME}${VERSION_FILES}.deb.sig" || return 42
-	# Create unversioned links for some easier handling  TODO: not yet foolproof!
-	ln -sf "${PACKAGE_NAME}${VERSION_FILES}.deb" "${PACKAGE_NAME}.deb"
-	ln -sf "${PACKAGE_NAME}${VERSION_FILES}.deb.sig" "${PACKAGE_NAME}.deb.sig"
+    echo ""
+    VERSION_FILES=$(curl -fsS "${GITHUB_URL_VERSION}/VERSION")
+    if [[ -z "${VERSION_FILES}" ]] ; then
+        echo "Error: The repository/branch doesn't have the required file '${GITHUB_URL_VERSION}/VERSION' (yet)!"
+        return 42
+    fi
+    echo "--- Downloading ${PACKAGE_NAME}${VERSION_FILES} Debian package from github.com/${REPO_OWNER}"
+    if (( VERBOSE )) ; then
+        echo "    > found VERSION file at ${GITHUB_URL_VERSION}/VERSION"
+        echo "    >     with contents: ${VERSION_FILES}"
+        echo "    > Downloading using the commands:"
+        echo "    >     curl -fsSLO ${GITHUB_URL_DEB}/${PACKAGE_NAME}${VERSION_FILES}.deb"
+        echo "    >     curl -fsSLO ${GITHUB_URL_DEB}/${PACKAGE_NAME}${VERSION_FILES}.deb.sig"
+    fi
+    curl -fsSLO "${GITHUB_URL_DEB}/${PACKAGE_NAME}${VERSION_FILES}.deb" || return 42
+    curl -fsSLO "${GITHUB_URL_DEB}/${PACKAGE_NAME}${VERSION_FILES}.deb.sig" || return 42
+    # Create unversioned links for some easier handling  TODO: not yet foolproof!
+    ln -sf "${PACKAGE_NAME}${VERSION_FILES}.deb" "${PACKAGE_NAME}.deb"
+    ln -sf "${PACKAGE_NAME}${VERSION_FILES}.deb.sig" "${PACKAGE_NAME}.deb.sig"
 }
 
 use_provided_or_download_packages() {
-	if [[ -n "$1" && -d "$1" ]]; then
-		cd "$1" || return 42
-		if [[ ! -f "${PACKAGE_NAME}.deb" ]]; then
-			echo "??? $1/${PACKAGE_NAME}.deb not found"
-			return 42
-		fi
-		if [[ ! -f "${PACKAGE_NAME}.deb.sig" ]]; then
-			echo "??? $1/${PACKAGE_NAME}.deb.sig not found"
-			return 42
-		fi
-	else
-		download_package_files || return $?
-	fi
+    if [[ -n "$1" && -d "$1" ]]; then
+        cd "$1" || return 42
+        if [[ ! -f "${PACKAGE_NAME}.deb" ]]; then
+            echo "??? $1/${PACKAGE_NAME}.deb not found"
+            return 42
+        fi
+        if [[ ! -f "${PACKAGE_NAME}.deb.sig" ]]; then
+            echo "??? $1/${PACKAGE_NAME}.deb.sig not found"
+            return 42
+        fi
+    else
+        download_package_files || return $?
+    fi
 }
 
 verify_package() {
-	echo ""
-	echo "--- Verifying Debian package was created by the package maintainer '${REPO_OWNER}'"
-	if (( VERBOSE )) ; then
-		echo "    > using command:"
-		echo "    >     gpg --batch --verify ${PACKAGE_NAME}${VERSION_FILES}.deb.sig  ${PACKAGE_NAME}${VERSION_FILES}.deb"
-	fi
-	if ! gpg --batch --verify "${PACKAGE_NAME}${VERSION_FILES}.deb.sig" "${PACKAGE_NAME}${VERSION_FILES}.deb" ; then
-		echo "Error: Verification failed. TODO: What to do now?"
-		return 42
-	fi
+    echo ""
+    echo "--- Verifying Debian package was created by the package maintainer '${REPO_OWNER}'"
+    if (( VERBOSE )) ; then
+        echo "    > using command:"
+        echo "    >     gpg --batch --verify ${PACKAGE_NAME}${VERSION_FILES}.deb.sig  ${PACKAGE_NAME}${VERSION_FILES}.deb"
+    fi
+    if ! gpg --batch --verify "${PACKAGE_NAME}${VERSION_FILES}.deb.sig" "${PACKAGE_NAME}${VERSION_FILES}.deb" ; then
+        echo "Error: Verification failed. TODO: What to do now?"
+        return 42
+    fi
 
 	# TODO: The signature verification needs to be improved!
 	#       The above test is okay, but only if this script here is authentic...
@@ -267,37 +268,37 @@ verify_package() {
 }
 
 install_package() {
-	local version
-	version=$(dpkg -I ${PACKAGE_NAME}.deb | grep "^ Version" | cut -f 3 -d ' ')
+    local version
+    version=$(dpkg -I ${PACKAGE_NAME}.deb | grep "^ Version" | cut -f 3 -d ' ')
 
-	echo ""
-	if ! ask_yes_no  -n "--- Installing ${RASPIBACKUP} ${version}. Are you sure?" ; then
-		echo "!!! Installation of ${RASPIBACKUP} ${version} cancelled by user."
-		return 42
-	fi
+    echo ""
+    if ! ask_yes_no  -n "--- Installing ${RASPIBACKUP} ${version}. Are you sure?" ; then
+        echo "!!! Installation of ${RASPIBACKUP} ${version} cancelled by user."
+        return 42
+    fi
 
-	echo ""
-	echo "--- Installing ${RASPIBACKUP} package and all dependencies"
-	if (( VERBOSE )) ; then
-		echo "    > using command:"
-		echo "    >     sudo apt-get install --allow-downgrades -y ./${PACKAGE_NAME}${VERSION_FILES}.deb"
-	fi
-	if ! sudo apt-get install --allow-downgrades -y "./${PACKAGE_NAME}${VERSION_FILES}.deb" ; then
-	## TODO: !!! interferes with dpkg's interactive dialogs: | tee -a "$LOG_FILE" 2>&1
-	## TODO: --allow-downgrades might be dangerous. See 'man apt-get'
-		return $?
-	fi
+    echo ""
+    echo "--- Installing ${RASPIBACKUP} package and all dependencies"
+    if (( VERBOSE )) ; then
+        echo "    > using command:"
+        echo "    >     sudo apt-get install --allow-downgrades -y ./${PACKAGE_NAME}${VERSION_FILES}.deb"
+    fi
+    if ! sudo apt-get install --allow-downgrades -y "./${PACKAGE_NAME}${VERSION_FILES}.deb" ; then
+    ## TODO: !!! interferes with dpkg's interactive dialogs: | tee -a "$LOG_FILE" 2>&1
+    ## TODO: --allow-downgrades might be dangerous. See 'man apt-get'
+        return $?
+    fi
 
-	dpkg --list | grep ${PACKAGE_NAME} | awk '{ print "--- ${PACKAGE_NAME}", $3, "installed successfully"; }'
+    dpkg --list | grep ${PACKAGE_NAME} | awk '{ print "--- ${PACKAGE_NAME}", $3, "installed successfully"; }'
 
-	# Due to systemd components in the installed debian package there is the following warning shown by apt-get:
-	#
-	#   Warning: The unit file, source configuration file or drop-ins of raspiBackup.service changed on disk.
-	#            Run 'systemctl daemon-reload' to reload units.
-	#
-	# So doing as advised now:
-	echo "--- Reload systemd units"
-	sudo systemctl daemon-reload
+    # Due to systemd components in the installed debian package there is the following warning shown by apt-get:
+    #
+    #   Warning: The unit file, source configuration file or drop-ins of raspiBackup.service changed on disk.
+    #            Run 'systemctl daemon-reload' to reload units.
+    #
+    # So doing as advised now:
+    echo "--- Reload systemd units"
+    sudo systemctl daemon-reload
 }
 
 
@@ -311,22 +312,22 @@ exec 2> >(stdbuf -i0 -o0 -e0 tee -ia "$LOG_FILE" >&2)
 
 VERBOSE=0
 while true ; do
-	case "$1" in
-		   -h|--help) usage
-			      exit 0
-			   ;;
-		-v|--verbose) VERBOSE=1
-			      shift
-			      continue
-			      ;;
-	esac
+    case "$1" in
+           -h|--help) usage
+                      exit 0
+                      ;;
+        -v|--verbose) VERBOSE=1
+                      shift
+                      continue
+                      ;;
+    esac
 
-	if [[ "$1" =~ ^- ]] ; then
-		echo "Error: Unknown option '$1'!"
-		exit 42
-	fi
+    if [[ "$1" =~ ^- ]] ; then
+        echo "Error: Unknown option '$1'!"
+        exit 42
+    fi
 
-	break
+    break
 done
 
 rm -f "$LOG_FILE"
