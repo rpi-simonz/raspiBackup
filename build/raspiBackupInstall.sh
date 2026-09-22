@@ -58,9 +58,14 @@ It executes the following steps (could be done manually as well, of course):
 
 Usage:
 
-    ${MYSELF} [<directory>]
+    ${MYSELF} [-v|--verbose] [<directory>]
 
-The optional parameter <directory> specifies an existing directory
+
+The option '-v|--verbose' lets the script print more details
+about the steps taken. In case the user would like to learn a bit or
+to check the results manually...
+
+The optional argument <directory> specifies an existing directory
 with the already downloaded Debian package and its signature file.
 Use '.' for the current directory.
 
@@ -76,7 +81,7 @@ Additionally the download source can be modified by setting the environment:
 Note:
 
     The former script 'raspiBackupInstallUI' no longer exists as such
-    and has been replaced by 'raspiBackupConfig'.
+    and has been (will be) replaced by 'raspiBackupConfig'.
 
     'raspiBackupConfig' can be used after installation
     to configure ${RASPIBACKUP} for individual needs.
@@ -199,7 +204,7 @@ download_package_files() {
     fi
     echo "--- Downloading ${PACKAGE_NAME}${VERSION_FILES} Debian package from github.com/${REPO_OWNER}"
     if (( VERBOSE )) ; then
-        echo "    > found VERSION file at ${GITHUB_URL_VERSION}/VERSION"
+        echo "    > Found VERSION file at ${GITHUB_URL_VERSION}/VERSION"
         echo "    >     with contents: ${VERSION_FILES}"
         echo "    > Downloading using the commands:"
         echo "    >     curl -fsSLO ${GITHUB_URL_DEB}/${PACKAGE_NAME}${VERSION_FILES}.deb"
@@ -231,40 +236,101 @@ use_provided_or_download_packages() {
 verify_package() {
     echo ""
     echo "--- Verifying Debian package was created by the package maintainer '${REPO_OWNER}'"
+
+    # Note: If the key to be verified isn't in the local keyring at all, the verfication would fail like shown below.
+    #       But that shouldn't happen here, because the key has been imported earlier in this script.
+    #       (What about a faked/wrong and therefore not imported signature???)
+    #
+    #     gpg: Signatur vom Di 15 Sep 2026 21:58:04 CEST
+    #     gpg:                mittels RSA-Schlüssel 1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234
+    #     gpg: Signatur kann nicht geprüft werden: Kein öffentlicher Schlüssel
+    #
+    #     gpg: Signature made Tue Sep 15 21:58:04 2026 CEST
+    #     gpg:                using RSA key 1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234
+    #     gpg: Can't check signature: No public key
+    #
+    #     [GNUPG:] NEWSIG
+    #     [GNUPG:] ERRSIG OPQRSTUVWXYZ1234  1 10 00 1789502284 9 1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234
+    #     [GNUPG:] NO_PUBKEY OPQRSTUVWXYZ1234
+    #     [GNUPG:] FAILURE gpg-exit 33554433
+
     if (( VERBOSE )) ; then
         echo "    > using command:"
         echo "    >     gpg --batch --verify ${PACKAGE_NAME}${VERSION_FILES}.deb.sig  ${PACKAGE_NAME}${VERSION_FILES}.deb"
-    fi
-    if ! gpg --batch --verify "${PACKAGE_NAME}${VERSION_FILES}.deb.sig" "${PACKAGE_NAME}${VERSION_FILES}.deb" ; then
-        echo "Error: Verification failed. TODO: What to do now?"
-        return 42
+        echo "    >"
+        gpg --batch --verify "${PACKAGE_NAME}${VERSION_FILES}.deb.sig" "${PACKAGE_NAME}${VERSION_FILES}.deb" 2>&1 | sed -e 's/^/    > /'
     fi
 
-	# TODO: The signature verification needs to be improved!
-	#       The above test is okay, but only if this script here is authentic...
-	#       Ideally the user checks the output of the above command manually against
-	#       another source, e.g. the homepage of framps (...) where his correct GPG key
-	#       could be displayed.
-	#
-	#       Here are two example outputs of the above command (in German and English)
-	#       with the important parts marked with '^':
-	#
-	#           gpg: Signatur vom Do 10 Sep 2026 21:08:26 CEST
-	#           gpg:                mittels EDDSA-Schlüssel 1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234
-	#                                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-	#           gpg: verwende Vertrauensmodell pgp
-	#           gpg: Korrekte Signatur von "Name <mail@someserver.com>" [ultimativ]
-	#                ^^^^^^^^^^^^^^^^^      ^^^^^^^^^^^^^^^^^^^^^^^^^^
-	#           gpg: Binäre Signatur, Hashmethode SHA512, Schlüsselverfahren ed25519
-	#
-	#
-	#           gpg: Signature made Thu Sep 10 21:08:26 2026 CEST
-	#           gpg:                using EDDSA key 1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234
-	#                                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-	#           gpg: using pgp trust model
-	#           gpg: Good signature from "Name <mail@someserver.com>" [ultimate]
-	#                ^^^^^^^^^^^^^^       ^^^^^^^^^^^^^^^^^^^^^^^^^^
-	#           gpg: binary signature, digest algorithm SHA512, key algorithm ed25519
+    gpgresult=$(gpg --batch --status-fd 1 --verify "${PACKAGE_NAME}${VERSION_FILES}.deb.sig" "${PACKAGE_NAME}${VERSION_FILES}.deb"  2>/dev/null)
+
+    if grep "^\[GNUPG:\] GOODSIG " <(echo "${gpgresult}") >/dev/null ; then
+        # echo "GOOD SIGNATURE"
+        if ! grep "^\[GNUPG:\] VALIDSIG " <(echo "${gpgresult}") >/dev/null ; then
+            # echo "SIGNATURE IS VALID"
+        # else
+            echo ""
+            echo "OOPS, SIGNATURE IS NOT VALID?????"
+            exit 42
+        fi
+        if (( VERBOSE )) ; then
+            if grep "^\[GNUPG:\] TRUST_UNDEFINED " <(echo "${gpgresult}") >/dev/null ; then
+                echo ""
+                echo "The signature is good and valid but as GPG's warning above indicates:"
+                echo ""
+                echo "The key has not been checked(?!) and then *signed with trust state* in the local keyring by yourself."
+                echo "That is no problem, it's recommended to do that but it is optional."
+                echo "TODO: Describe procedure here!?"
+
+                # Since the installation and the signature check will happen
+                # on random Raspberry Pis that will be the usual situation
+                # and is therefore acceptable.
+                # Ideally the user checks the output of the above command manually
+                # against another source, e.g. the homepage of framp (...)
+                # where his correct GPG key could be displayed.
+            fi
+        fi
+    else
+        echo "OOPS, SIGNATURE IS NOT GOOD!!!???"
+        echo ""
+        gpg --batch --verify "${PACKAGE_NAME}${VERSION_FILES}.deb.sig" "${PACKAGE_NAME}${VERSION_FILES}.deb"
+        exit 42
+    fi
+
+    # Here are two example outputs of the above commands (in German and English)
+    # with the important parts marked with '^':
+    #
+    # gpg --batch --verify package.deb.sig" package.deb"
+    #
+    #     gpg: Signatur vom Do 10 Sep 2026 21:08:26 CEST
+    #     gpg:                mittels EDDSA-Schlüssel 1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234
+    #                                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    #     gpg: Korrekte Signatur von "Name <mail@someserver.com>" [unbekannt]
+    #          ^^^^^^^^^^^^^^^^^      ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    #     gpg: WARNUNG: Dieser Schlüssel trägt keine vertrauenswürdige Signatur!
+    #     gpg:          Es gibt keinen Hinweis, daß die Signatur wirklich dem vorgeblichen Besitzer gehört.
+    #     Haupt-Fingerabdruck  = 1234 5678 90AB CDEF GHIJ  KLMN OPQR STUV WXYZ 1234
+    #
+    #
+    #
+    #     gpg: Signature made Tue Sep 15 21:58:04 2026 CEST
+    #     gpg:                using RSA key 1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234
+    #                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    #     gpg: Good signature from "Name <mail@someserver.com>" [unknown]
+    #          ^^^^^^^^^^^^^^       ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    #     gpg: WARNING: This key is not certified with a trusted signature!
+    #     gpg:          There is no indication that the signature belongs to the owner.
+    #     Primary key fingerprint: 1234 5678 90AB CDEF GHIJ  KLMN OPQR STUV WXYZ 1234
+    #
+    # Or in machine readable format:
+    #
+    # gpg --batch --status-fd 1 --verify package.deb.sig" package.deb"  2>/dev/null
+    #
+    #     [GNUPG:] NEWSIG
+    #     [GNUPG:] KEY_CONSIDERED 1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234 0
+    #     [GNUPG:] SIG_ID xxxxyyyghtqqgssnn87aj111889 2026-09-15 1789502284
+    #     [GNUPG:] GOODSIG OPQRSTUVWXYZ1234 name <mail@someserver.com>
+    #     [GNUPG:] VALIDSIG 1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234 2026-09-15 1789502284 0 4 0 1 10 00 1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234
+    #     [GNUPG:] TRUST_UNDEFINED 0 pgp
 }
 
 install_package() {
