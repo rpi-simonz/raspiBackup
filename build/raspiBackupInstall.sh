@@ -129,6 +129,7 @@ cleanup() {
 	if (( $1 == 0 )); then
 		: rm -f "$LOG_FILE"
 	else
+		echo ""
 		echo "??? Installation failed (or has been cancelled)"
 		echo "!!! Check $LOG_FILE for details"
 	fi
@@ -163,7 +164,18 @@ get_gpg_key() {
 	# retrieve and import ${REPO_OWNER} gpg key from github if it doesn't exist already in keyring
 	if ! gpg --list-keys "${REPO_OWNER_GPG_FINGERPRINT}" > /dev/null; then
 		echo ""
-		echo "--- Retrieving ${REPO_OWNER}'s GPG key from github"
+		if (( VERBOSE )) ; then
+			echo "    > The repo owners GPG key isn't in the local keyring, checked via command:"
+			echo "    >     gpg --list-keys ${REPO_OWNER_GPG_FINGERPRINT}"
+			echo ""
+		fi
+		# might print messages like these:
+		#     gpg: directory '/home/username/.gnupg' created
+		#     gpg: keybox '/home/username/.gnupg/pubring.kbx' created
+		#     gpg: /home/username/.gnupg/trustdb.gpg: trustdb created
+		#     gpg: error reading key: No public key
+
+		echo "--- Retrieving ${REPO_OWNER}'s GPG key from https://github.com/${REPO_OWNER}.gpg"
 		echo ""
 		curl -fsSLO https://github.com/"${REPO_OWNER}".gpg
 		gpg --show-keys "${REPO_OWNER}".gpg
@@ -185,6 +197,13 @@ download_package_files() {
 		return 42
 	fi
 	echo "--- Downloading ${PACKAGE_NAME}${VERSION_FILES} Debian package from github.com/${REPO_OWNER}"
+	if (( VERBOSE )) ; then
+		echo "    > found VERSION file at ${GITHUB_URL_VERSION}/VERSION"
+		echo "    >     with contents: ${VERSION_FILES}"
+		echo "    > Downloading using the commands:"
+		echo "    >     curl -fsSLO ${GITHUB_URL_DEB}/${PACKAGE_NAME}${VERSION_FILES}.deb"
+		echo "    >     curl -fsSLO ${GITHUB_URL_DEB}/${PACKAGE_NAME}${VERSION_FILES}.deb.sig"
+	fi
 	curl -fsSLO "${GITHUB_URL_DEB}/${PACKAGE_NAME}${VERSION_FILES}.deb" || return 42
 	curl -fsSLO "${GITHUB_URL_DEB}/${PACKAGE_NAME}${VERSION_FILES}.deb.sig" || return 42
 	# Create unversioned links for some easier handling  TODO: not yet foolproof!
@@ -211,7 +230,11 @@ use_provided_or_download_packages() {
 verify_package() {
 	echo ""
 	echo "--- Verifying Debian package was created by the package maintainer '${REPO_OWNER}'"
-	if ! gpg --verbose --verify "${PACKAGE_NAME}${VERSION_FILES}.deb.sig" "${PACKAGE_NAME}${VERSION_FILES}.deb" ; then
+	if (( VERBOSE )) ; then
+		echo "    > using command:"
+		echo "    >     gpg --batch --verify ${PACKAGE_NAME}${VERSION_FILES}.deb.sig  ${PACKAGE_NAME}${VERSION_FILES}.deb"
+	fi
+	if ! gpg --batch --verify "${PACKAGE_NAME}${VERSION_FILES}.deb.sig" "${PACKAGE_NAME}${VERSION_FILES}.deb" ; then
 		echo "Error: Verification failed. TODO: What to do now?"
 		return 42
 	fi
@@ -255,8 +278,13 @@ install_package() {
 
 	echo ""
 	echo "--- Installing ${RASPIBACKUP} package and all dependencies"
+	if (( VERBOSE )) ; then
+		echo "    > using command:"
+		echo "    >     sudo apt-get install --allow-downgrades -y ./${PACKAGE_NAME}${VERSION_FILES}.deb"
+	fi
 	if ! sudo apt-get install --allow-downgrades -y "./${PACKAGE_NAME}${VERSION_FILES}.deb" ; then
 	## TODO: !!! interferes with dpkg's interactive dialogs: | tee -a "$LOG_FILE" 2>&1
+	## TODO: --allow-downgrades might be dangerous. See 'man apt-get'
 		return $?
 	fi
 
@@ -272,10 +300,25 @@ trap 'cleanup $?' SIGINT SIGTERM SIGHUP EXIT
 exec 1> >(stdbuf -i0 -o0 -e0 tee -ia "$LOG_FILE")
 exec 2> >(stdbuf -i0 -o0 -e0 tee -ia "$LOG_FILE" >&2)
 
-if [[ "$1" =~ ^-h$|^--help$ ]]; then
-	usage
-	exit 0
-fi
+VERBOSE=0
+while true ; do
+	case "$1" in
+		   -h|--help) usage
+			      exit 0
+			   ;;
+		-v|--verbose) VERBOSE=1
+			      shift
+			      continue
+			      ;;
+	esac
+
+	if [[ "$1" =~ ^- ]] ; then
+		echo "Error: Unknown option '$1'!"
+		exit 42
+	fi
+
+	break
+done
 
 rm -f "$LOG_FILE"
 
